@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Porchlight: ask for help without broadcasting where you live</title>
+<style>
+:root{--ink:#1a1c20;--muted:#60656f;--line:#e4e6ea;--paper:#fff;--bg:#f7f8fa;--warm:#b45309;
+--warm-bg:#fffbeb;--go:#15803d;--go-bg:#f0fdf4;--locked:#64748b;--locked-bg:#f1f5f9}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font:15px/1.65 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink);background:var(--bg)}
+.wrap{max-width:1060px;margin:0 auto;padding:0 20px 60px}
+header{background:var(--paper);border-bottom:1px solid var(--line);padding:18px 0}
+header .wrap{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding-bottom:0}
+h1{font-size:22px;font-weight:650;letter-spacing:-.3px}
+h1 span{color:var(--muted);font-weight:400;font-size:15px;display:block;letter-spacing:0}
+.who{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:13px}
+select,button{font:inherit;border:1px solid #ccd1d9;border-radius:7px;background:#fff;padding:7px 11px}
+select{max-width:210px}
+button{font-weight:550;cursor:pointer}
+button:hover{background:#f2f4f7}
+button.go{background:var(--ink);color:#fff;border-color:var(--ink)}
+button.go:hover{background:#2c2f36}
+button.quiet{border:0;background:none;color:var(--muted);text-decoration:underline;padding:4px}
+:focus-visible{outline:2px solid #1d4ed8;outline-offset:1px}
+.stages{display:flex;gap:0;margin:20px 0 6px;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:var(--paper)}
+.stage{flex:1;padding:11px 14px;border-right:1px solid var(--line);font-size:12.5px}
+.stage:last-child{border-right:0}
+.stage b{display:block;font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);margin-bottom:3px}
+.stage.on{background:var(--go-bg)}
+.stage.on b{color:var(--go)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
+@media(max-width:820px){.grid{grid-template-columns:1fr}}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:16px 18px}
+.card h2{font-size:16px;font-weight:600}
+.card .cat{font-size:17px;font-weight:600;margin-bottom:2px}
+.meta{font-size:13px;color:var(--muted)}
+.field{display:flex;gap:9px;align-items:flex-start;padding:9px 0;border-top:1px solid var(--line);font-size:13.5px}
+.field:first-of-type{border-top:0}
+.key{min-width:92px;color:var(--muted);font-size:12.5px;padding-top:1px}
+.locked{background:var(--locked-bg);color:var(--locked);border-radius:5px;padding:2px 8px;font-size:12px}
+.shown{color:var(--go);font-weight:550}
+.offers{margin-top:12px}
+.offer{border:1px solid var(--line);border-radius:8px;padding:11px 13px;margin-top:9px;background:#fcfcfd}
+.offer .name{font-weight:600}
+.trust{font-size:12.5px;color:var(--warm);background:var(--warm-bg);border-radius:6px;padding:6px 9px;margin-top:7px}
+.trust small{display:block;color:var(--muted);margin-top:2px}
+.row{display:flex;gap:8px;margin-top:9px;flex-wrap:wrap}
+.pill{display:inline-block;font-size:11px;font-weight:650;letter-spacing:.4px;text-transform:uppercase;padding:2px 8px;border-radius:4px;background:var(--locked-bg);color:var(--locked)}
+.pill.accepted{background:var(--go-bg);color:var(--go)}
+.note{font-size:12.5px;color:var(--muted);margin-top:10px}
+.proof{margin-top:16px}
+.proof summary{cursor:pointer;font-size:13px;font-weight:600}
+pre{background:#0f1115;color:#dbe1ea;border-radius:8px;padding:13px;overflow:auto;font-size:12px;line-height:1.55;margin-top:9px;max-height:320px}
+pre mark{background:#7f1d1d;color:#fecaca;padding:0 2px;border-radius:2px}
+.flash{background:var(--warm-bg);border:1px solid #fcd34d;color:#78350f;border-radius:8px;padding:10px 13px;font-size:13.5px;margin-top:14px}
+footer{font-size:12.5px;color:var(--muted);margin-top:28px;line-height:1.75}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <h1>Porchlight<span>Ask a neighbour for help without broadcasting where you live</span></h1>
+  <div class="who">
+    <label for="viewer">Signed in as</label>
+    <select id="viewer"><option value="">Nobody (public view)</option></select>
+    <button id="reset" class="quiet" type="button">Reset demo</button>
+  </div>
+</div></header>
+
+<main class="wrap">
+  <div class="stages" id="stages"></div>
+  <p class="note" id="stagenote">Pick a request below. The three stages show what the person signed in above can see right now.</p>
+  <div id="flash"></div>
+  <div class="grid" id="board"></div>
+
+  <details class="proof">
+    <summary>Show the exact response the server sent</summary>
+    <p class="note">This is the raw payload for the selected request, for the person signed in above. Nothing is hidden by the interface: the address is not in the response at all until the requester accepts. Private values that are present are highlighted.</p>
+    <pre id="raw">Select a request.</pre>
+  </details>
+
+  <footer>
+    A prototype of a protocol, not a service. Real deployment would need identity verification,
+    abuse reporting and a safeguarding policy, none of which fit in a hackathon.
+    All people, addresses and phone numbers here are invented.
+  </footer>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let viewer = '', people = [], selected = null, detail = null;
+
+const q = () => viewer ? `?viewer=${encodeURIComponent(viewer)}` : '';
+const name = id => (people.find(p => p.id === id) || {}).display_name || id;
+
+const STAGES = [
+  ['0 · Public', 'Category, a rough area and a time window. No name, no street, no circumstances.'],
+  ['1 · Offered', 'The requester sees who offered and why they are trusted. The helper learns nothing new.'],
+  ['2 · Accepted', 'Exact address and contact unlock, for that one helper, for that one request.'],
+];
+
+function drawStages(level) {
+  $('#stages').innerHTML = STAGES.map(([label, text], i) =>
+    `<div class="stage ${level >= i ? 'on' : ''}"><b>${esc(label)}</b>${esc(text)}</div>`).join('');
+}
+
+async function load() {
+  const board = await (await fetch('/api/requests' + q())).json();
+  if (!selected || !board.requests.some(r => r.id === selected)) selected = board.requests[0]?.id;
+  detail = selected ? await (await fetch(`/api/requests/${selected}` + q())).json() : null;
+  const asHelper = detail && detail.offers === undefined
+    ? detail.stage === 2 ? 2 : (detail.my_offer && detail.my_offer.state === 'offered' ? 1 : 0)
+    : 0;
+  drawStages(asHelper);
+  $('#board').innerHTML = board.requests.map(r => card(r, r.id === selected)).join('');
+  bind();
+  drawRaw();
+}
+
+function card(r, isSelected) {
+  const mine = viewer && detail && r.id === selected && detail.offers !== undefined;
+  const d = isSelected ? detail : r;
+  const area = `${d.area.cell} · about ${d.area.approximate_size_metres[1]}m by ${d.area.approximate_size_metres[0]}m`;
+  const unlocked = d.stage === 2;
+  return `<section class="card" style="${isSelected ? 'border-color:#94a3b8' : ''}">
+    <p class="cat">${esc(d.category)}</p>
+    <p class="meta">${esc(d.window)} · posted ${esc(d.created)}</p>
+    <div style="margin-top:12px">
+      <div class="field"><span class="key">Area</span><span>${esc(area)}<br><span class="meta">Pin sits at the cell centre, never the address.</span></span></div>
+      <div class="field"><span class="key">Address</span>${unlocked
+        ? `<span class="shown">${esc(d.address)}</span>`
+        : `<span class="locked">not in this response</span>`}</div>
+      <div class="field"><span class="key">Details</span>${unlocked
+        ? `<span class="shown">${esc(d.details)}</span>`
+        : `<span class="locked">not in this response</span>`}</div>
+      ${d.requester ? `<div class="field"><span class="key">Contact</span><span class="shown">${esc(d.requester.display_name)} · ${esc(d.requester.phone)}</span></div>` : ''}
+      <div class="field"><span class="key">Offers</span><span>${d.offer_count} live</span></div>
+    </div>
+    ${isSelected ? controls(d) : `<div class="row"><button data-pick="${esc(r.id)}" type="button">Select</button></div>`}
+  </section>`;
+}
+
+function controls(d) {
+  if (!viewer) return `<p class="note">Sign in as someone above to offer, or as the person who asked to see their side.</p>`;
+  if (d.offers !== undefined) {
+    const list = d.offers.length ? d.offers.map(o => `<div class="offer">
+        <span class="name">${esc(o.helper.display_name)}</span>
+        <span class="pill ${o.state === 'accepted' ? 'accepted' : ''}">${esc(o.state)}</span>
+        <p class="meta">Joined ${esc(o.helper.joined)} · helped ${o.helper.helped_count} times${o.helper.phone ? ` · ${esc(o.helper.phone)}` : ''}</p>
+        ${o.note ? `<p class="meta">&ldquo;${esc(o.note)}&rdquo;</p>` : ''}
+        ${o.trust ? `<div class="trust">${esc(o.trust.headline)}<small>${esc(o.trust.detail)}</small></div>` : ''}
+        ${o.state === 'offered' ? `<div class="row">
+          <button class="go" data-accept="${esc(o.id)}" type="button">Accept, and share my address</button>
+          <button data-decline="${esc(o.id)}" type="button">Decline</button></div>` : ''}
+      </div>`).join('') : '<p class="note">No offers yet.</p>';
+    return `<div class="offers"><h2 style="font-size:14px">Your request</h2>${list}
+      <div class="row"><button data-cancel="1" type="button">Cancel this request</button></div></div>`;
+  }
+  const mine = d.my_offer;
+  if (!mine || ['withdrawn', 'declined'].includes(mine.state))
+    return `<div class="row"><button class="go" data-offer="1" type="button">Offer to help</button></div>
+      ${mine ? `<p class="note">Your previous offer was ${esc(mine.state)}.</p>` : ''}`;
+  return `<p class="note">Your offer is <b>${esc(mine.state)}</b>. ${mine.state === 'offered'
+    ? 'You will see the address only if they accept you.' : 'You can see the address and contact above.'}</p>
+    <div class="row"><button data-withdraw="${esc(mine.id)}" type="button">Withdraw my offer</button></div>`;
+}
+
+function flash(text, ok) {
+  $('#flash').innerHTML = text ? `<div class="flash" role="status">${esc(text)}</div>` : '';
+}
+
+async function act(url, options) {
+  const response = await fetch(url, options);
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    flash(body.detail || 'That is not allowed.');
+    return false;
+  }
+  flash('');
+  return true;
+}
+
+function bind() {
+  document.querySelectorAll('[data-pick]').forEach(b => b.onclick = () => { selected = b.dataset.pick; load(); });
+  const post = (path, body) => act(path, body
+    ? { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body) }
+    : { method: 'POST' }).then(ok => ok && load());
+  $('[data-offer]') && ($('[data-offer]').onclick = () =>
+    post(`/api/requests/${selected}/offers`, { helper_id: viewer, note: 'Happy to help this week.' }));
+  document.querySelectorAll('[data-accept]').forEach(b => b.onclick = () =>
+    post(`/api/requests/${selected}/offers/${b.dataset.accept}/accept?actor=${viewer}`));
+  document.querySelectorAll('[data-decline]').forEach(b => b.onclick = () =>
+    post(`/api/requests/${selected}/offers/${b.dataset.decline}/decline?actor=${viewer}`));
+  document.querySelectorAll('[data-withdraw]').forEach(b => b.onclick = () =>
+    post(`/api/requests/${selected}/offers/${b.dataset.withdraw}/withdraw?actor=${viewer}`));
+  document.querySelectorAll('[data-cancel]').forEach(b => b.onclick = () =>
+    post(`/api/requests/${selected}/cancel?actor=${viewer}`));
+}
+
+function drawRaw() {
+  if (!detail) return;
+  let text = esc(JSON.stringify(detail, null, 2));
+  for (const secret of [detail.address, detail.details, detail.requester?.phone].filter(Boolean))
+    text = text.split(esc(secret)).join(`<mark>${esc(secret)}</mark>`);
+  $('#raw').innerHTML = text;
+  const owner = detail.offers !== undefined;
+  const offered = !owner && detail.my_offer && detail.my_offer.state === 'offered';
+  $('#stagenote').textContent = owner
+    ? 'You posted this request, so you see all of it. The strip above shows what a helper sees as the request moves along.'
+    : detail.stage === 2
+      ? 'Stage 2. The address is in the response because this requester accepted you for this request.'
+      : offered
+        ? 'Stage 1. You have offered. Nothing new was revealed to you, and there is still no address field in the response.'
+        : 'Stage 0. There is no address field in the response at all.';
+}
+
+$('#viewer').onchange = e => { viewer = e.target.value; load(); };
+$('#reset').onclick = async () => { await fetch('/api/reset', { method: 'POST' }); selected = null; flash(''); load(); };
+
+fetch('/api/people').then(r => r.json()).then(data => {
+  people = data.people;
+  $('#viewer').innerHTML = '<option value="">Nobody (public view)</option>' +
+    people.map(p => `<option value="${esc(p.id)}">${esc(p.display_name)}</option>`).join('');
+  load();
+});
+</script>
+</body>
+</html>
